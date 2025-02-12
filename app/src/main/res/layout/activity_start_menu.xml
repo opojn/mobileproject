@@ -6,17 +6,45 @@
     android:gravity="center"
     android:padding="16dp">
 
+    <!-- Name Input Label -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Name: "
+        android:textSize="20sp"
+        android:layout_marginBottom="8dp"/>
+
+    <!-- Text Input for Player Name -->
+    <EditText
+        android:id="@+id/name_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter your name"
+        android:inputType="text"/>
+
+    <!-- Start Game Button -->
     <Button
         android:id="@+id/button_start"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Start Game" />
+        android:text="Start Game"
+        android:layout_marginTop="16dp" />
 
+    <!-- Leaderboard Button -->
     <Button
         android:id="@+id/button_leaderboard"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Leaderboard"
-        android:layout_marginTop="16dp" />
+        android:layout_marginTop="16dp"/>
 
+    <!-- Error Message -->
+    <TextView
+        android:id="@+id/error_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="16sp"
+        android:textColor="#FF0000"
+        android:layout_marginTop="16dp"/>
 </LinearLayout>

@@ -9,16 +9,31 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
 
+        <!-- Start Menu Activity (Launcher) -->
         <activity
             android:name=".StartMenuActivity"
-            android:exported="true"> <!-- Add this line -->
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <activity android:name=".LeaderboardActivity" />
+        <!-- Start Game Activity -->
+        <activity
+            android:name=".StartGameActivity"
+            android:exported="true" />
+
+        <!-- Leaderboard Activity -->
+        <activity
+            android:name=".LeaderboardActivity"
+            android:exported="true" />
+
+        <!-- Settings Activity (if needed) -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="true" />
+
     </application>
 
 </manifest>

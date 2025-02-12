@@ -12,12 +12,19 @@
         android:text="Leaderboard"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:layout_marginBottom="16dp"/>
+        android:layout_marginBottom="16dp" />
 
-    <Button
-        android:id="@+id/button_back_leaderboard"
+    <TextView
+        android:id="@+id/leaderboard_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Back"
+        android:text="No scores yet!"
+        android:textSize="18sp"/>
+
+    <Button
+        android:id="@+id/button_back"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Back to Main Menu"
         android:layout_marginTop="16dp"/>
 </LinearLayout>
