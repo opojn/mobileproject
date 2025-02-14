@@ -32,6 +32,7 @@
             android:name=".LeaderboardActivity"
             android:exported="true" />
 
+
     </application>
 
 </manifest>

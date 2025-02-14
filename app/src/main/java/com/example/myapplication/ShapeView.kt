@@ -151,6 +151,15 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         }
     }
 
+    private fun playSound(mediaPlayer: MediaPlayer) {
+        if (mediaPlayer.isPlaying) {
+            mediaPlayer.stop() // Stop if already playing
+            mediaPlayer.prepare() // Prepare again for the next play
+        }
+        mediaPlayer.start()
+    }
+
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!showShapes || !gameRunning) return false
 
@@ -172,10 +181,10 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                     if (hit) {
                         if (shape.type == targetShape) {
                             score++
-                            correctSound.start()
+                            playSound(correctSound)
                         } else {
                             score--
-                            wrongSound.start()
+                            playSound(wrongSound)
                             vibrate()
                         }
                         targetShape = getRandomShape() // Change the target shape after every click
