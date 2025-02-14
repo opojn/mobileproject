@@ -17,6 +17,7 @@ import kotlin.random.Random
 import android.os.Build
 
 class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
+
     interface GameEndListener {
         fun onGameEnd(finalScore: Int)
     }
@@ -35,13 +36,15 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private var countdown = 5
     private val handler = Handler(Looper.getMainLooper())
     private var score = 0
-    private var gameDuration = 30
+    private var gameDuration = 5
     private var remainingTime = gameDuration
     private var gameRunning = false
     private var finalScore: Int? = null
     private var isGameFinished = false
     private var shapes = mutableListOf<ShapeData>()
     private var targetShape = getRandomShape()
+    private var speedMultiplier = 1.0f // Initial speed multiplier
+
 
     // Media players for sound effects
     private val correctSound: MediaPlayer = MediaPlayer.create(context, R.raw.correct_sound)
@@ -91,6 +94,12 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             override fun run() {
                 if (remainingTime > 0) {
                     remainingTime--
+
+                    // Increase speed every 5 seconds
+                    if (remainingTime % 5 == 0) {
+                        speedMultiplier += 1.0f // Gradually speed up shapes
+                    }
+
                     invalidate()
                     handler.postDelayed(this, 1000)
                 } else {
@@ -122,7 +131,9 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         if (isGameFinished) {
             paint.color = Color.BLACK
             paint.textSize = 80f
-            canvas.drawText("Final Score: $finalScore", width / 2f - 200, height / 2f, paint)
+            val finalText = "Final Score: $finalScore"
+            val finalWidth = paint.measureText(finalText) // Measure text width
+            canvas.drawText(finalText, (width - finalWidth)/2 , height / 2f, paint)
             return
         }
 
@@ -132,7 +143,9 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         canvas.drawText("Score: $score", width - 200f, 80f, paint)
 
         paint.textSize = 70f
-        canvas.drawText("Target: $targetShape", width / 2f - 100, height - 50f, paint)
+        val targetText = "Target: $targetShape"
+        val textWidth = paint.measureText(targetText) // Measure text width
+        canvas.drawText(targetText, (width - textWidth) / 2, height - 50f, paint) // Center align
 
         for (shape in shapes) {
             paint.color = shape.color
@@ -280,8 +293,8 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                 if (!gameRunning) return
 
                 for (shape in shapes) {
-                    shape.x += shape.dx
-                    shape.y += shape.dy
+                    shape.x += shape.dx * speedMultiplier
+                    shape.y += shape.dy * speedMultiplier
 
                     if (shape.x - shape.size / 2 < 0 || shape.x + shape.size / 2 > width) {
                         shape.dx *= -1
