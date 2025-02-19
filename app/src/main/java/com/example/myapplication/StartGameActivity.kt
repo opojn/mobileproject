@@ -15,22 +15,22 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         playerName = intent.getStringExtra("PLAYER_NAME") ?: "Unknown"
-
-        // Set up ShapeView
         shapeView = ShapeView(this, null)
         shapeView.setGameEndListener(this)
-
         val layout = LinearLayout(this)
         layout.orientation = LinearLayout.VERTICAL
         layout.addView(shapeView)
-
         setContentView(layout)
-
-        backgroundMusic = MediaPlayer.create(this, R.raw.game_music)
-        backgroundMusic?.setVolume(0.2f, 0.2f) // Set BGM to 50% volume
-        backgroundMusic?.isLooping = true
+        playGameMusic()
+    }
+    private fun playGameMusic() {
+        if (backgroundMusic?.isPlaying == true) return
+        if (backgroundMusic == null) {
+            backgroundMusic = MediaPlayer.create(this, R.raw.game_music)
+            backgroundMusic?.isLooping = true
+            backgroundMusic?.setVolume(0.2f, 0.2f)
+        }
         backgroundMusic?.start()
-
     }
 
     override fun onGameEnd(finalScore: Int) {

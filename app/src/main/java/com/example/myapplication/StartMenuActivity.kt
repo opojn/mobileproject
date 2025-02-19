@@ -46,6 +46,7 @@ class StartMenuActivity : AppCompatActivity() {
     private fun playMenuMusic() {
         val sharedPreferences = getSharedPreferences("GameSettings", Context.MODE_PRIVATE)
         val bgmVolume = sharedPreferences.getFloat("BGM_VOLUME", 0.5f)
+        if (backgroundMusic?.isPlaying == true) return
 
         if (backgroundMusic == null) {
             backgroundMusic = MediaPlayer.create(this, R.raw.menu_music)
@@ -71,6 +72,12 @@ class StartMenuActivity : AppCompatActivity() {
         super.onDestroy()
         stopMenuMusic()
     }
-
+//    private fun playSound(mediaPlayer: MediaPlayer) {
+//        if (mediaPlayer.isPlaying) {
+//            mediaPlayer.stop()
+//            mediaPlayer.prepare()
+//        }
+//        mediaPlayer.start()
+//    }
 
 }

@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.media.MediaPlayer
+import android.media.SoundPool
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -14,6 +15,8 @@ import android.os.Vibrator
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.random.Random
 // Box2D / JBox2D imports
 import org.jbox2d.collision.shapes.CircleShape
@@ -33,7 +36,6 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     }
 
     private var gameEndListener: GameEndListener? = null
-
     fun setGameEndListener(listener: GameEndListener) {
         gameEndListener = listener
     }
@@ -42,56 +44,73 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         style = Paint.Style.FILL
     }
 
-    private var showShapes = false
-    private var countdown = 5
+    // Game state variables
+    private var countdown = 3
     private val handler = Handler(Looper.getMainLooper())
     private var score = 0
-    private var gameDuration = 30
+    private var lives = 3
+    private var combo = 0
+    private var gameDuration = 30 // seconds
     private var remainingTime = gameDuration
     private var gameRunning = false
-    private var finalScore: Int? = null
     private var isGameFinished = false
-    private var shapes = mutableListOf<ShapeData>()
-    private var targetShape = getRandomShape()
-    private var speedMultiplier = 1.0f
 
-    // Create a Box2D world with zero gravity.
+    // Difficulty variables
+    private var difficultyLevel = 1
+    private var spawnInterval = 3000L // base spawn interval in milliseconds
+    private val spawnHandler = Handler(Looper.getMainLooper())
+    private val minSpawnInterval = 3000L
+
+    // New: Track last click time (in milliseconds)
+    private var lastClickTime = System.currentTimeMillis()
+    // If no click in the past 3000ms, we'll extend the spawn interval by 2000ms.
+
+    // Box2D variables
     private val world = World(Vec2(0f, 0f))
     companion object {
-        // Conversion factor: pixels per meter.
         const val PIXELS_PER_METER = 30f
     }
     private var boundariesCreated = false
-
-    // New constant to boost the initial speed.
     private val initialSpeedFactor = 60f
+    private var speedMultiplier = 1.0f
 
-    // Media players for sound effects
-    private val correctSound: MediaPlayer = MediaPlayer.create(context, R.raw.correct_sound)
-    private val wrongSound: MediaPlayer = MediaPlayer.create(context, R.raw.wrong_sound)
+    // SoundPool for in-game sound effects
+    private val soundPool: SoundPool = SoundPool.Builder().setMaxStreams(5).build()
+    private var popSoundId: Int = 0
+    private var wrongSoundId: Int = 0
 
-    // Each shape now stores its base speed (in world units) along with its Box2D body.
+    // List of shapes and target shape text
+    private var shapes = mutableListOf<ShapeData>()
+    private var targetShape = getRandomShape() // e.g., "Circle", "Square", or "Triangle"
+
+    // Data class for shapes
     data class ShapeData(
-        var x: Float,             // Center x (in pixels)
-        var y: Float,             // Center y (in pixels)
-        var size: Float,          // Size (in pixels)
+        var x: Float,
+        var y: Float,
+        var size: Float,
         var color: Int,
         var type: String,
         var dx: Float = Random.nextFloat() * 10 - 5,
         var dy: Float = Random.nextFloat() * 10 - 5,
-        var baseSpeed: Float = 0f,  // Base speed in world units (set later)
-        var body: Body? = null     // Reference to the Box2D body
+        var baseSpeed: Float = 0f,
+        var body: Body? = null,
+        var popped: Boolean = false // for pop animation effect
     )
 
     init {
+        popSoundId = soundPool.load(context, R.raw.correct_sound, 1)
+        wrongSoundId = soundPool.load(context, R.raw.wrong_sound, 1)
         startCountdown()
+    }
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        soundPool.release() // release SoundPool when view is detached
     }
 
     private fun getRandomShape(): String {
         return listOf("Circle", "Square", "Triangle").random()
     }
 
-    // Create world boundaries once the view size is known.
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (!boundariesCreated) {
@@ -104,29 +123,29 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         val bodyDef = BodyDef()
         val wallBody = world.createBody(bodyDef)
 
-        // Top edge: from (0,0) to (w,0)
-        val topEdge = EdgeShape()
-        topEdge.set(Vec2(0f, 0f), Vec2(w / PIXELS_PER_METER, 0f))
+        val topEdge = EdgeShape().apply {
+            set(Vec2(0f, 0f), Vec2(w / PIXELS_PER_METER, 0f))
+        }
         wallBody.createFixture(topEdge, 0f)
 
-        // Bottom edge: from (0,h) to (w,h)
-        val bottomEdge = EdgeShape()
-        bottomEdge.set(Vec2(0f, h / PIXELS_PER_METER), Vec2(w / PIXELS_PER_METER, h / PIXELS_PER_METER))
+        val bottomEdge = EdgeShape().apply {
+            set(Vec2(0f, h / PIXELS_PER_METER), Vec2(w / PIXELS_PER_METER, h / PIXELS_PER_METER))
+        }
         wallBody.createFixture(bottomEdge, 0f)
 
-        // Left edge: from (0,0) to (0,h)
-        val leftEdge = EdgeShape()
-        leftEdge.set(Vec2(0f, 0f), Vec2(0f, h / PIXELS_PER_METER))
+        val leftEdge = EdgeShape().apply {
+            set(Vec2(0f, 0f), Vec2(0f, h / PIXELS_PER_METER))
+        }
         wallBody.createFixture(leftEdge, 0f)
 
-        // Right edge: from (w,0) to (w,h)
-        val rightEdge = EdgeShape()
-        rightEdge.set(Vec2(w / PIXELS_PER_METER, 0f), Vec2(w / PIXELS_PER_METER, h / PIXELS_PER_METER))
+        val rightEdge = EdgeShape().apply {
+            set(Vec2(w / PIXELS_PER_METER, 0f), Vec2(w / PIXELS_PER_METER, h / PIXELS_PER_METER))
+        }
         wallBody.createFixture(rightEdge, 0f)
     }
 
+    // Countdown before the game starts
     private fun startCountdown() {
-        targetShape = getRandomShape()
         handler.postDelayed(object : Runnable {
             override fun run() {
                 if (countdown > 0) {
@@ -135,10 +154,9 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                     handler.postDelayed(this, 1000)
                 } else {
                     countdown = -1
-                    showShapes = true
                     gameRunning = true
+                    startSpawnRoutine()
                     startGameTimer()
-                    generateRandomShapes()
                     moveShapes()
                     invalidate()
                 }
@@ -146,15 +164,32 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         }, 1000)
     }
 
+    // Spawn routine to generate shapes periodically.
+    // If no click has occurred in the last 3000ms, extend the interval.
+    private fun startSpawnRoutine() {
+        spawnHandler.postDelayed(spawnRunnable, spawnInterval)
+    }
+
+    private val spawnRunnable = object : Runnable {
+        override fun run() {
+            generateRandomShapes()
+            difficultyLevel++
+            // Decrease spawn interval with difficulty, but adjust if no click recently.
+            val currentTime = System.currentTimeMillis()
+            val timeSinceLastClick = currentTime - lastClickTime
+            // If no click in the last 3000ms, add an extra 2000ms delay.
+            val effectiveSpawnInterval = if (timeSinceLastClick > 3000L) spawnInterval + 2000L else spawnInterval
+            // Ensure spawnInterval does not fall below minSpawnInterval.
+            spawnInterval = max(minSpawnInterval, spawnInterval - 200)
+            spawnHandler.postDelayed(this, effectiveSpawnInterval)
+        }
+    }
+
     private fun startGameTimer() {
         handler.postDelayed(object : Runnable {
             override fun run() {
-                if (remainingTime > 0) {
+                if (remainingTime > 0 && gameRunning) {
                     remainingTime--
-                    // Increase the speed multiplier every 5 seconds.
-                    if (remainingTime > 0 && remainingTime % 5 == 0) {
-                        speedMultiplier += 1.0f
-                    }
                     invalidate()
                     handler.postDelayed(this, 1000)
                 } else {
@@ -164,18 +199,21 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         }, 1000)
     }
 
+    // End game delays the transition by 3 seconds to let the final score remain visible.
     private fun endGame() {
         gameRunning = false
-        showShapes = false
         isGameFinished = true
-        finalScore = score
-        gameEndListener?.onGameEnd(finalScore!!)
+        spawnHandler.removeCallbacks(spawnRunnable)
+        handler.postDelayed({
+            gameEndListener?.onGameEnd(score)
+        }, 3000)
         invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
+        // Draw countdown
         if (countdown > 0) {
             paint.color = Color.BLACK
             paint.textSize = 100f
@@ -183,86 +221,94 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             return
         }
 
+        // Draw game over screen
         if (isGameFinished) {
             paint.color = Color.BLACK
             paint.textSize = 80f
-            val finalText = "Final Score: $finalScore"
+            val finalText = "Game Over! Score: $score"
             val finalWidth = paint.measureText(finalText)
             canvas.drawText(finalText, (width - finalWidth) / 2, height / 2f, paint)
             return
         }
 
+        // Draw HUD: Time, Score, Lives, Combo
         paint.color = Color.BLACK
         paint.textSize = 50f
         canvas.drawText("Time: $remainingTime", 50f, 80f, paint)
-        canvas.drawText("Score: $score", width - 200f, 80f, paint)
+        canvas.drawText("Score: $score", width - 250f, 80f, paint)
+        canvas.drawText("Lives: $lives", 50f, 140f, paint)
+        canvas.drawText("Combo: $combo", width - 250f, 140f, paint)
 
-        paint.textSize = 70f
+        // Display target shape text at the bottom
+        paint.textSize = 50f
         val targetText = "Target: $targetShape"
         val textWidth = paint.measureText(targetText)
-        canvas.drawText(targetText, (width - textWidth) / 2, height - 50f, paint)
+        canvas.drawText(targetText, (width - textWidth) / 2, height - 80f, paint)
 
-        // Draw each shape using its center (x,y)
+        // Draw shapes
         for (shape in shapes) {
-            paint.color = shape.color
-            when (shape.type) {
-                "Circle" -> canvas.drawCircle(shape.x, shape.y, shape.size / 2, paint)
-                "Square" -> canvas.drawRect(
-                    shape.x - shape.size / 2,
-                    shape.y - shape.size / 2,
-                    shape.x + shape.size / 2,
-                    shape.y + shape.size / 2,
-                    paint
-                )
-                "Triangle" -> {
-                    val path = Path()
-                    path.moveTo(shape.x, shape.y - shape.size / 2)
-                    path.lineTo(shape.x - shape.size / 2, shape.y + shape.size / 2)
-                    path.lineTo(shape.x + shape.size / 2, shape.y + shape.size / 2)
-                    path.close()
-                    canvas.drawPath(path, paint)
+            if (shape.popped) {
+                paint.color = Color.YELLOW
+                canvas.drawCircle(shape.x, shape.y, shape.size, paint)
+            } else {
+                paint.color = shape.color
+                when (shape.type) {
+                    "Circle" -> canvas.drawCircle(shape.x, shape.y, shape.size / 2, paint)
+                    "Square" -> canvas.drawRect(
+                        shape.x - shape.size / 2,
+                        shape.y - shape.size / 2,
+                        shape.x + shape.size / 2,
+                        shape.y + shape.size / 2,
+                        paint
+                    )
+                    "Triangle" -> {
+                        val path = Path()
+                        path.moveTo(shape.x, shape.y - shape.size / 2)
+                        path.lineTo(shape.x - shape.size / 2, shape.y + shape.size / 2)
+                        path.lineTo(shape.x + shape.size / 2, shape.y + shape.size / 2)
+                        path.close()
+                        canvas.drawPath(path, paint)
+                    }
                 }
             }
         }
     }
 
-    private fun playSound(mediaPlayer: MediaPlayer) {
-        if (mediaPlayer.isPlaying) {
-            mediaPlayer.stop()
-            mediaPlayer.prepare()
-        }
-        mediaPlayer.start()
-    }
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!showShapes || !gameRunning) return false
-
+        if (!gameRunning) return false
         val x = event.x
         val y = event.y
-
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                lastClickTime = System.currentTimeMillis() // Update last click time
+                var hitDetected = false
                 for (shape in shapes) {
-                    // Center-based hit detection.
                     val hit = when (shape.type) {
-                        "Circle" -> Math.hypot((x - shape.x).toDouble(), (y - shape.y).toDouble()) <= shape.size / 2
+                        "Circle" -> hypot((x - shape.x).toDouble(), (y - shape.y).toDouble()) <= shape.size / 2
                         "Square" -> x in (shape.x - shape.size / 2)..(shape.x + shape.size / 2) &&
                                 y in (shape.y - shape.size / 2)..(shape.y + shape.size / 2)
                         "Triangle" -> x in (shape.x - shape.size / 2)..(shape.x + shape.size / 2) &&
                                 y in (shape.y - shape.size / 2)..(shape.y + shape.size / 2)
                         else -> false
                     }
-
                     if (hit) {
+                        hitDetected = true
                         if (shape.type == targetShape) {
-                            score++
-                            playSound(correctSound)
+                            if (lives < 3) lives++
+                            score += 1 + combo
+                            combo++
+                            remainingTime++
+                            soundPool.play(popSoundId, 1f, 1f, 1, 0, 1f)
+                            shape.popped = true
+                            handler.postDelayed({ shapes.remove(shape) }, 100)
                         } else {
-                            score--
-                            playSound(wrongSound)
+                            combo = 0
+                            lives--
+                            soundPool.play(wrongSoundId, 1f, 1f, 1, 0, 1f)
                             vibrate()
+                            if (lives <= 0) { endGame() }
                         }
-                        targetShape = getRandomShape() // Change target after a hit
+                        targetShape = getRandomShape()
                         generateRandomShapes()
                         break
                     }
@@ -284,24 +330,31 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             }
         }
     }
-
-    // Generate new shapes and create their Box2D bodies.
+    private fun playSound(mediaPlayer: MediaPlayer) {
+        if (mediaPlayer.isPlaying) {
+            mediaPlayer.stop()
+            mediaPlayer.prepare()
+        }
+        mediaPlayer.start()
+    }
+    // Generate new shapes and ensure at least one of each type is present.
     private fun generateRandomShapes() {
-        // Remove any existing shapes.
+        // Clear current shapes and destroy Box2D bodies.
         for (shape in shapes) {
             shape.body?.let { world.destroyBody(it) }
         }
         shapes.clear()
-        val numberOfShapes = Random.nextInt(5, 11)
-        val usedPositions = mutableListOf<Pair<Float, Float>>()
-        var hasTargetShape = false
 
-        repeat(numberOfShapes) { i ->
-            val size = Random.nextFloat() * 100f + 100f
+        val numberOfShapes = Random.nextInt(3, 6 + difficultyLevel)
+        val usedPositions = mutableListOf<Pair<Float, Float>>()
+
+        repeat(numberOfShapes) {
+            // Increase base size for bigger shapes.
+            val baseSize = max(50f, 250f - difficultyLevel * 5)
+            val size = Random.nextFloat() * 30f + baseSize
             var x: Float
             var y: Float
             var attempts = 0
-
             do {
                 x = Random.nextFloat() * (width - size) + size / 2
                 y = Random.nextFloat() * (height - size) + size / 2
@@ -310,88 +363,70 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                     Math.abs(px - x) < size && Math.abs(py - y) < size
                 })
             usedPositions.add(Pair(x, y))
-            val type = if (!hasTargetShape && i == numberOfShapes - 1) {
-                hasTargetShape = true
-                targetShape
-            } else {
-                listOf("Circle", "Square", "Triangle").random()
-            }
-            if (type == targetShape) hasTargetShape = true
-
+            val type = listOf("Circle", "Square", "Triangle").random()
             val shapeData = ShapeData(x, y, size, getRandomColor(), type)
             shapeData.body = createBodyForShape(shapeData)
             shapes.add(shapeData)
         }
-
-        // Force-add a target shape if not present.
-        if (!hasTargetShape) {
-            val size = Random.nextFloat() * 100f + 100f
-            var x: Float
-            var y: Float
-            var attempts = 0
-            do {
-                x = Random.nextFloat() * (width - size) + size / 2
-                y = Random.nextFloat() * (height - size) + size / 2
-                attempts++
-            } while (attempts < 10 && usedPositions.any { (px, py) ->
-                    Math.abs(px - x) < size && Math.abs(py - y) < size
-                })
-            val shapeData = ShapeData(x, y, size, getRandomColor(), targetShape)
-            shapeData.body = createBodyForShape(shapeData)
-            shapes.add(shapeData)
+        // Ensure at least one of each shape is present.
+        val requiredTypes = listOf("Circle", "Square", "Triangle")
+        for (reqType in requiredTypes) {
+            if (shapes.none { it.type == reqType }) {
+                // Create a shape of the missing type.
+                val baseSize = max(70f, 250f - difficultyLevel * 5)
+                val size = baseSize + Random.nextFloat() * 30f
+                val x = Random.nextFloat() * (width - size) + size / 2
+                val y = Random.nextFloat() * (height - size) + size / 2
+                val shapeData = ShapeData(x, y, size, getRandomColor(), reqType)
+                shapeData.body = createBodyForShape(shapeData)
+                shapes.add(shapeData)
+            }
         }
-
         invalidate()
     }
 
-    // Create a Box2D body for the given shape.
     private fun createBodyForShape(shape: ShapeData): Body {
         val bodyDef = BodyDef().apply {
             type = BodyType.DYNAMIC
-            // Set the position using world units.
             position.set(shape.x / PIXELS_PER_METER, shape.y / PIXELS_PER_METER)
             fixedRotation = true
         }
         val body = world.createBody(bodyDef)
-
-        // Set initial velocity using the initialSpeedFactor to boost speed.
         val initVel = Vec2(
             (shape.dx / PIXELS_PER_METER) * initialSpeedFactor,
             (shape.dy / PIXELS_PER_METER) * initialSpeedFactor
         )
         body.linearVelocity = initVel
-
-        // Store the base speed (magnitude in world units).
         shape.baseSpeed = initVel.length()
-
         val fixtureDef = FixtureDef().apply {
             density = 1f
             friction = 0f
             restitution = 1f
         }
-
         when (shape.type) {
             "Circle" -> {
-                val circle = CircleShape()
-                circle.m_radius = (shape.size / 2) / PIXELS_PER_METER
+                val circle = CircleShape().apply {
+                    m_radius = (shape.size / 2) / PIXELS_PER_METER
+                }
                 fixtureDef.shape = circle
             }
             "Square" -> {
-                val polygon = PolygonShape()
-                val halfSize = (shape.size / 2) / PIXELS_PER_METER
-                polygon.setAsBox(halfSize, halfSize)
+                val polygon = PolygonShape().apply {
+                    val halfSize = (shape.size / 2) / PIXELS_PER_METER
+                    setAsBox(halfSize, halfSize)
+                }
                 fixtureDef.shape = polygon
             }
             "Triangle" -> {
-                val polygon = PolygonShape()
-                val halfSize = (shape.size / 2) / PIXELS_PER_METER
-                // Define a triangle with top vertex at (0,-halfSize) and base from (-halfSize,halfSize) to (halfSize,halfSize).
-                val vertices = arrayOf(
-                    Vec2(0f, -halfSize),
-                    Vec2(-halfSize, halfSize),
-                    Vec2(halfSize, halfSize)
-                )
-                polygon.set(vertices, vertices.size)
+                val polygon = PolygonShape().apply {
+                    val halfSize = (shape.size / 2) / PIXELS_PER_METER
+                    val vertices = arrayOf(
+                        Vec2(0f, -halfSize),
+                        Vec2(-halfSize, halfSize),
+                        Vec2(halfSize, halfSize)
+                    )
+                    set(vertices, vertices.size)
+                }
                 fixtureDef.shape = polygon
             }
         }
@@ -403,18 +438,14 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         return Color.rgb(Random.nextInt(256), Random.nextInt(256), Random.nextInt(256))
     }
 
-    // Step the Box2D simulation and update shape positions.
     private fun moveShapes() {
         handler.postDelayed(object : Runnable {
             override fun run() {
                 if (!gameRunning) return
-
                 val timeStep = 1.0f / 60f
                 val velocityIterations = 8
                 val positionIterations = 3
                 world.step(timeStep, velocityIterations, positionIterations)
-
-                // Update velocity based on speed multiplier and then update positions.
                 for (shape in shapes) {
                     shape.body?.let { body ->
                         val currentVel = body.linearVelocity
@@ -430,7 +461,7 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                     }
                 }
                 invalidate()
-                handler.postDelayed(this, 16) // Roughly 60 FPS.
+                handler.postDelayed(this, 16)
             }
         }, 16)
     }
