@@ -64,4 +64,9 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
         backgroundMusic?.release()
         backgroundMusic = null
     }
+
+    override fun onResume() {
+        super.onResume()
+        playGameMusic()
+    }
 }
