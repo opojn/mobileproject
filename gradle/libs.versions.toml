@@ -1,5 +1,7 @@
 [versions]
-agp = "8.8.0"
+agp = "8.7.3"
+badlogicgamesGdx = "1.11.0"
+jbox2dLibrary = "2.2.1.1"
 kotlin = "1.9.24"
 coreKtx = "1.10.1"
 junit = "4.13.2"
@@ -13,6 +15,8 @@ navigationFragmentKtx = "2.8.6"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+badlogicgames-gdx = { module = "com.badlogicgames.gdx:gdx", version.ref = "badlogicgamesGdx" }
+jbox2d-library = { module = "org.jbox2d:jbox2d-library", version.ref = "jbox2dLibrary" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
