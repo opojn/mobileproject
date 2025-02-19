@@ -20,6 +20,7 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
         val layout = LinearLayout(this)
         layout.orientation = LinearLayout.VERTICAL
         layout.addView(shapeView)
+
         setContentView(layout)
         playGameMusic()
     }

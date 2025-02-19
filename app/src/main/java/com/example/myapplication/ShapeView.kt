@@ -146,10 +146,12 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     // Countdown before the game starts
     private fun startCountdown() {
-        handler.postDelayed(object : Runnable {
+        // Generate shapes before countdown finishes
+        generateRandomShapes()
+
+        handler.post(object : Runnable {
             override fun run() {
                 if (countdown > 0) {
-                    countdown--
                     invalidate()
                     handler.postDelayed(this, 1000)
                 } else {
@@ -158,11 +160,13 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                     startSpawnRoutine()
                     startGameTimer()
                     moveShapes()
-                    invalidate()
+                    invalidate() // Force redraw with pre-generated shapes
                 }
+                countdown--
             }
-        }, 1000)
+        })
     }
+
 
     // Spawn routine to generate shapes periodically.
     // If no click has occurred in the last 3000ms, extend the interval.
@@ -209,6 +213,7 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         }, 3000)
         invalidate()
     }
+
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
