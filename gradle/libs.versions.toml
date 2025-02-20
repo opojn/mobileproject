@@ -12,6 +12,9 @@ material = "1.10.0"
 gamesActivity = "3.0.5"
 navigationRuntimeKtx = "2.8.6"
 navigationFragmentKtx = "2.8.6"
+roomCommon = "2.6.1"
+roomKtx = "2.6.1"
+room = "2.6.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -25,6 +28,11 @@ material = { group = "com.google.android.material", name = "material", version.r
 androidx-games-activity = { group = "androidx.games", name = "games-activity", version.ref = "gamesActivity" }
 androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationRuntimeKtx" }
 androidx-navigation-fragment-ktx = { group = "androidx.navigation", name = "navigation-fragment-ktx", version.ref = "navigationFragmentKtx" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+androidx-room-common = { group = "androidx.room", name = "room-common", version.ref = "roomCommon" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
