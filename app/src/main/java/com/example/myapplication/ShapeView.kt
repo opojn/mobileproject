@@ -13,6 +13,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.hypot
@@ -447,9 +448,9 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         handler.postDelayed(object : Runnable {
             override fun run() {
                 if (!gameRunning) return
-                val timeStep = 1.0f / 60f
-                val velocityIterations = 8
-                val positionIterations = 3
+                val timeStep = 1.0f / 30f
+                val velocityIterations = 6
+                val positionIterations = 2
                 world.step(timeStep, velocityIterations, positionIterations)
                 for (shape in shapes) {
                     shape.body?.let { body ->
@@ -466,8 +467,8 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                     }
                 }
                 invalidate()
-                handler.postDelayed(this, 16)
+                handler.postDelayed(this, 33)
             }
-        }, 16)
+        }, 33)
     }
 }
