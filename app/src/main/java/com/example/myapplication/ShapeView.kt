@@ -69,7 +69,7 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     // Box2D variables
     private val world = World(Vec2(0f, 0f))
     companion object {
-        const val PIXELS_PER_METER = 30f
+        const val PIXELS_PER_METER = 20f
     }
     private var boundariesCreated = false
     private val initialSpeedFactor = 60f
@@ -280,49 +280,93 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         }
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!gameRunning) return false
-        val x = event.x
-        val y = event.y
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                lastClickTime = System.currentTimeMillis() // Update last click time
-                var hitDetected = false
-                for (shape in shapes) {
-                    val hit = when (shape.type) {
-                        "Circle" -> hypot((x - shape.x).toDouble(), (y - shape.y).toDouble()) <= shape.size / 2
-                        "Square" -> x in (shape.x - shape.size / 2)..(shape.x + shape.size / 2) &&
-                                y in (shape.y - shape.size / 2)..(shape.y + shape.size / 2)
-                        "Triangle" -> x in (shape.x - shape.size / 2)..(shape.x + shape.size / 2) &&
-                                y in (shape.y - shape.size / 2)..(shape.y + shape.size / 2)
-                        else -> false
-                    }
-                    if (hit) {
-                        hitDetected = true
-                        if (shape.type == targetShape) {
-                            if (lives < 3) lives++
-                            score += 1 + combo
-                            combo++
-                            remainingTime++
-                            soundPool.play(popSoundId, 1f, 1f, 1, 0, 1f)
-                            shape.popped = true
-                            handler.postDelayed({ shapes.remove(shape) }, 100)
-                        } else {
-                            combo = 0
-                            lives--
-                            soundPool.play(wrongSoundId, 1f, 1f, 1, 0, 1f)
-                            vibrate()
-                            if (lives <= 0) { endGame() }
-                        }
-                        targetShape = getRandomShape()
-                        generateRandomShapes()
-                        break
-                    }
-                }
-                invalidate()
-            }
+//    override fun onTouchEvent(event: MotionEvent): Boolean {
+//        if (!gameRunning) return false
+//        val x = event.x
+//        val y = event.y
+//        when (event.action) {
+//            MotionEvent.ACTION_DOWN -> {
+//                lastClickTime = System.currentTimeMillis() // Update last click time
+//                var hitDetected = false
+//                for (shape in shapes) {
+//                    val hit = when (shape.type) {
+//                        "Circle" -> hypot((x - shape.x).toDouble(), (y - shape.y).toDouble()) <= shape.size / 2
+//                        "Square" -> x in (shape.x - shape.size / 2)..(shape.x + shape.size / 2) &&
+//                                y in (shape.y - shape.size / 2)..(shape.y + shape.size / 2)
+//                        "Triangle" -> x in (shape.x - shape.size / 2)..(shape.x + shape.size / 2) &&
+//                                y in (shape.y - shape.size / 2)..(shape.y + shape.size / 2)
+//                        else -> false
+//                    }
+//                    if (hit) {
+//                        hitDetected = true
+//                        if (shape.type == targetShape) {
+//                            if (lives < 3) lives++
+//                            score += 1 + combo
+//                            combo++
+//                            remainingTime++
+//                            soundPool.play(popSoundId, 1f, 1f, 1, 0, 1f)
+//                            shape.popped = true
+//                            handler.postDelayed({ shapes.remove(shape) }, 100)
+//                        } else {
+//                            combo = 0
+//                            lives--
+//                            soundPool.play(wrongSoundId, 1f, 1f, 1, 0, 1f)
+//                            vibrate()
+//                            if (lives <= 0) { endGame() }
+//                        }
+//                        targetShape = getRandomShape()
+//                        generateRandomShapes()
+//                        break
+//                    }
+//                }
+//                invalidate()
+//            }
+//        }
+//        return true
+//    }
+override fun onTouchEvent(event: MotionEvent): Boolean {
+    if (!gameRunning || event.action != MotionEvent.ACTION_DOWN) return false
+
+    lastClickTime = System.currentTimeMillis()
+    val x = event.x
+    val y = event.y
+
+    val hitShape = shapes.firstOrNull { shape ->
+        when (shape.type) {
+            "Circle" -> hypot((x - shape.x).toDouble(), (y - shape.y).toDouble()) <= shape.size / 2
+            "Square", "Triangle" -> x in (shape.x - shape.size / 2)..(shape.x + shape.size / 2) &&
+                    y in (shape.y - shape.size / 2)..(shape.y + shape.size / 2)
+            else -> false
         }
-        return true
+    }
+
+    hitShape?.let { shape ->
+        if (shape.type == targetShape) {
+            score += 1 + combo
+            combo++
+            if (lives < 3) lives++
+            soundPool.play(popSoundId, 1f, 1f, 1, 0, 1f)
+        } else {
+            combo = 0
+            lives--
+            soundPool.play(wrongSoundId, 1f, 1f, 1, 0, 1f)
+            vibrate()
+            if (lives <= 0) endGame()
+        }
+        shapes.remove(shape)
+        targetShape = getRandomShape()
+        // 🚀 Check if any shape type is missing, regenerate if needed
+        if (!isValidShapeDistribution()) {
+            generateRandomShapes()
+        }
+    }
+
+    invalidate()
+    return true
+}
+    private fun isValidShapeDistribution(): Boolean {
+        val shapeTypes = shapes.map { it.type }.toSet()
+        return shapeTypes.contains("Circle") && shapeTypes.contains("Square") && shapeTypes.contains("Triangle")
     }
 
     private fun vibrate() {
@@ -344,52 +388,97 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         mediaPlayer.start()
     }
     // Generate new shapes and ensure at least one of each type is present.
+//    private fun generateRandomShapes() {
+//        // Clear current shapes and destroy Box2D bodies.
+//        for (shape in shapes) {
+//            shape.body?.let { world.destroyBody(it) }
+//        }
+//        shapes.clear()
+//
+//        val numberOfShapes = Random.nextInt(3, 6 + difficultyLevel)
+//        val usedPositions = mutableListOf<Pair<Float, Float>>()
+//
+//        repeat(numberOfShapes) {
+//            // Increase base size for bigger shapes.
+//            val baseSize = max(50f, 250f - difficultyLevel * 5)
+//            val size = Random.nextFloat() * 30f + baseSize
+//            var x: Float
+//            var y: Float
+//            var attempts = 0
+//            do {
+//                x = Random.nextFloat() * (width - size) + size / 2
+//                y = Random.nextFloat() * (height - size) + size / 2
+//                attempts++
+//            } while (attempts < 10 && usedPositions.any { (px, py) ->
+//                    Math.abs(px - x) < size && Math.abs(py - y) < size
+//                })
+//            usedPositions.add(Pair(x, y))
+//            val type = listOf("Circle", "Square", "Triangle").random()
+//            val shapeData = ShapeData(x, y, size, getRandomColor(), type)
+//            shapeData.body = createBodyForShape(shapeData)
+//            shapes.add(shapeData)
+//        }
+//        // Ensure at least one of each shape is present.
+//        val requiredTypes = listOf("Circle", "Square", "Triangle")
+//        for (reqType in requiredTypes) {
+//            if (shapes.none { it.type == reqType }) {
+//                // Create a shape of the missing type.
+//                val baseSize = max(70f, 250f - difficultyLevel * 5)
+//                val size = baseSize + Random.nextFloat() * 30f
+//                val x = Random.nextFloat() * (width - size) + size / 2
+//                val y = Random.nextFloat() * (height - size) + size / 2
+//                val shapeData = ShapeData(x, y, size, getRandomColor(), reqType)
+//                shapeData.body = createBodyForShape(shapeData)
+//                shapes.add(shapeData)
+//            }
+//        }
+//        invalidate()
+//    }
     private fun generateRandomShapes() {
-        // Clear current shapes and destroy Box2D bodies.
-        for (shape in shapes) {
-            shape.body?.let { world.destroyBody(it) }
-        }
+        shapes.forEach { it.body?.let(world::destroyBody) }
         shapes.clear()
 
+        val shapeTypes = listOf("Circle", "Square", "Triangle")
         val numberOfShapes = Random.nextInt(3, 6 + difficultyLevel)
-        val usedPositions = mutableListOf<Pair<Float, Float>>()
+        val usedPositions = mutableSetOf<Pair<Float, Float>>()
 
-        repeat(numberOfShapes) {
-            // Increase base size for bigger shapes.
-            val baseSize = max(50f, 250f - difficultyLevel * 5)
-            val size = Random.nextFloat() * 30f + baseSize
-            var x: Float
-            var y: Float
+        fun getUniquePosition(size: Float): Pair<Float, Float> {
+            var pos: Pair<Float, Float>
             var attempts = 0
             do {
-                x = Random.nextFloat() * (width - size) + size / 2
-                y = Random.nextFloat() * (height - size) + size / 2
+                pos = Random.nextFloat() * (width - size) + size / 2 to
+                        Random.nextFloat() * (height - size) + size / 2
                 attempts++
             } while (attempts < 10 && usedPositions.any { (px, py) ->
-                    Math.abs(px - x) < size && Math.abs(py - y) < size
+                    Math.abs(px - pos.first) < size && Math.abs(py - pos.second) < size
                 })
-            usedPositions.add(Pair(x, y))
-            val type = listOf("Circle", "Square", "Triangle").random()
-            val shapeData = ShapeData(x, y, size, getRandomColor(), type)
-            shapeData.body = createBodyForShape(shapeData)
-            shapes.add(shapeData)
+            usedPositions.add(pos)
+            return pos
         }
+
+        repeat(numberOfShapes) {
+            val type = shapeTypes.random()
+            val baseSize = max(70f, 250f - difficultyLevel * 5) // Increase minimum size from 50f to 70f
+            val size = Random.nextFloat() * 30f + baseSize
+            val (x, y) = getUniquePosition(size)
+            shapes.add(ShapeData(x, y, size, getRandomColor(), type).apply {
+                body = createBodyForShape(this)
+            })
+        }
+
         // Ensure at least one of each shape is present.
-        val requiredTypes = listOf("Circle", "Square", "Triangle")
-        for (reqType in requiredTypes) {
-            if (shapes.none { it.type == reqType }) {
-                // Create a shape of the missing type.
-                val baseSize = max(70f, 250f - difficultyLevel * 5)
-                val size = baseSize + Random.nextFloat() * 30f
-                val x = Random.nextFloat() * (width - size) + size / 2
-                val y = Random.nextFloat() * (height - size) + size / 2
-                val shapeData = ShapeData(x, y, size, getRandomColor(), reqType)
-                shapeData.body = createBodyForShape(shapeData)
-                shapes.add(shapeData)
+        shapeTypes.forEach { type ->
+            if (shapes.none { it.type == type }) {
+                val (x, y) = getUniquePosition(70f)
+                shapes.add(ShapeData(x, y, 70f, getRandomColor(), type).apply {
+                    body = createBodyForShape(this)
+                })
             }
         }
+
         invalidate()
     }
+
 
     private fun createBodyForShape(shape: ShapeData): Body {
         val bodyDef = BodyDef().apply {

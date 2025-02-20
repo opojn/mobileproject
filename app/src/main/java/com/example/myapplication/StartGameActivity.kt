@@ -26,12 +26,17 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
     }
     private fun playGameMusic() {
         if (backgroundMusic?.isPlaying == true) return
-        if (backgroundMusic == null) {
-            backgroundMusic = MediaPlayer.create(this, R.raw.game_music)
-            backgroundMusic?.isLooping = true
-            backgroundMusic?.setVolume(0.2f, 0.2f)
+        runOnUiThread {
+
+            if (backgroundMusic == null) {
+                backgroundMusic = MediaPlayer.create(this, R.raw.game_music)
+                backgroundMusic?.isLooping = true
+                backgroundMusic?.setVolume(0.2f, 0.2f)
+            }
+            else if (!backgroundMusic!!.isPlaying) {
+                backgroundMusic!!.start()
+            }
         }
-        backgroundMusic?.start()
     }
 
     override fun onGameEnd(finalScore: Int) {

@@ -120,7 +120,9 @@ class StartMenuActivity : AppCompatActivity() {
                 backgroundMusic?.isLooping = true
                 backgroundMusic?.setVolume(0.5f, 0.5f)
             }
-            backgroundMusic?.start()
+            else if (!backgroundMusic!!.isPlaying) {
+                backgroundMusic!!.start()
+            }
         }
     }
 
