@@ -47,12 +47,15 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
         backgroundMusic?.release()
         backgroundMusic = null
 
-
-        val intent = Intent(this, LeaderboardActivity::class.java)
+        // Pass the player's name and score to LeaderboardActivity
+        val intent = Intent(this, LeaderboardActivity::class.java).apply {
+            putExtra("PLAYER_NAME", playerName)
+            putExtra("PLAYER_SCORE", finalScore)
+        }
         startActivity(intent)
         finish()
-
     }
+
 
     private fun saveScore(name: String, score: Int) {
         val sharedPreferences = getSharedPreferences("Leaderboard", Context.MODE_PRIVATE)
