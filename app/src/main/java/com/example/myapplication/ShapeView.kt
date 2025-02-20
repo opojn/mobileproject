@@ -147,6 +147,12 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     // Countdown before the game starts
     private fun startCountdown() {
+        // Wait until view is measured
+        if (width == 0 || height == 0) {
+            // If dimensions are not ready, try again after a short delay.
+            handler.postDelayed({ startCountdown() }, 100)
+            return
+        }
         // Generate shapes before countdown finishes
         generateRandomShapes()
 
@@ -458,7 +464,7 @@ override fun onTouchEvent(event: MotionEvent): Boolean {
 
         repeat(numberOfShapes) {
             val type = shapeTypes.random()
-            val baseSize = max(70f, 250f - difficultyLevel * 5) // Increase minimum size from 50f to 70f
+            val baseSize = max(50f, 250f - difficultyLevel * 5) // Increase minimum size from 50f to 70f
             val size = Random.nextFloat() * 30f + baseSize
             val (x, y) = getUniquePosition(size)
             shapes.add(ShapeData(x, y, size, getRandomColor(), type).apply {
