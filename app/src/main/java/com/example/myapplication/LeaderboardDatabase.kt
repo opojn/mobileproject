@@ -3,7 +3,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [LeaderboardEntry::class], version = 1, exportSchema = false)
+@Database(entities = [Leaderboard::class], version = 1, exportSchema = false)
 abstract class LeaderboardDatabase : RoomDatabase() {
     abstract fun leaderboardDao(): LeaderboardDao
 
@@ -16,8 +16,11 @@ abstract class LeaderboardDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     LeaderboardDatabase::class.java,
-                    "leaderboard_db"
-                ).build()
+                    "leaderboard_database"
+                )
+                    .fallbackToDestructiveMigration() // Handles schema changes
+                    .build()
+
                 INSTANCE = instance
                 instance
             }

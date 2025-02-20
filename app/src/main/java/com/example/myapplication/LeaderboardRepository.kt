@@ -1,17 +1,14 @@
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class LeaderboardRepository(private val dao: LeaderboardDao) {
+class LeaderboardRepository(private val leaderboardDao: LeaderboardDao) {
 
     suspend fun insertScore(playerName: String, score: Int) {
-        withContext(Dispatchers.IO) {
-            dao.insertScore(LeaderboardEntry(playerName = playerName, score = score))
-        }
+        val leaderboard = Leaderboard(playerName = playerName, score = score)
+        leaderboardDao.insert(leaderboard)
     }
 
-    suspend fun getLeaderboard(): List<LeaderboardEntry> {
-        return withContext(Dispatchers.IO) {
-            dao.getLeaderboard()
-        }
+    suspend fun getLeaderboard(): List<Leaderboard> {
+        return leaderboardDao.getAllScores()
     }
 }
