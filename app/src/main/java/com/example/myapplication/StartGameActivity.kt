@@ -6,11 +6,18 @@ import android.os.Bundle
 import android.media.MediaPlayer
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.LinearLayout
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import LeaderboardRepository
+
+
 
 class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
     private lateinit var shapeView: ShapeView
     private lateinit var playerName: String
     private var backgroundMusic: MediaPlayer? = null
+    private lateinit var repository: LeaderboardRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,23 +30,27 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
 
         setContentView(layout)
         playGameMusic()
+
+        // Initialize Database and Repository
+        val database = LeaderboardDatabase.getDatabase(applicationContext)
+        repository = LeaderboardRepository(database.leaderboardDao())
     }
+
     private fun playGameMusic() {
         if (backgroundMusic?.isPlaying == true) return
         runOnUiThread {
-
             if (backgroundMusic == null) {
                 backgroundMusic = MediaPlayer.create(this, R.raw.game_music)
                 backgroundMusic?.isLooping = true
                 backgroundMusic?.setVolume(0.2f, 0.2f)
-            }
-            else if (!backgroundMusic!!.isPlaying) {
+            } else if (!backgroundMusic!!.isPlaying) {
                 backgroundMusic!!.start()
             }
         }
     }
 
     override fun onGameEnd(finalScore: Int) {
+        // Save Score Using Room Database
         saveScore(playerName, finalScore)
 
         // Stop game music
@@ -56,16 +67,19 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
         finish()
     }
 
-
     private fun saveScore(name: String, score: Int) {
-        val sharedPreferences = getSharedPreferences("Leaderboard", Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                println("DEBUG: Saving score to Room -> $name: $score")
+                repository.insertScore(name, score)
 
-        val currentScores = sharedPreferences.getStringSet("scores", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-        currentScores.add("$name:$score")
-
-        editor.putStringSet("scores", currentScores)
-        editor.apply()
+                val scores = repository.getLeaderboard()
+                println("DEBUG: Scores in Room after Insert -> ${scores.joinToString { "${it.playerName}: ${it.score}" }}")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                println("ERROR: Failed to save score!")
+            }
+        }
     }
 
     override fun onDestroy() {

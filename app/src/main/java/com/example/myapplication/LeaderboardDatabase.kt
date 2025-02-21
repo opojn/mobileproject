@@ -18,7 +18,7 @@ abstract class LeaderboardDatabase : RoomDatabase() {
                     LeaderboardDatabase::class.java,
                     "leaderboard_database"
                 )
-                    .fallbackToDestructiveMigration() // Handles schema changes
+                    //.fallbackToDestructiveMigration() // Handles schema changes
                     .build()
 
                 INSTANCE = instance
