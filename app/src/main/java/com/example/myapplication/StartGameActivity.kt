@@ -9,7 +9,6 @@ import android.widget.LinearLayout
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import LeaderboardRepository
 
 
 
@@ -62,6 +61,8 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
         val intent = Intent(this, LeaderboardActivity::class.java).apply {
             putExtra("PLAYER_NAME", playerName)
             putExtra("PLAYER_SCORE", finalScore)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+
         }
         startActivity(intent)
         finish()

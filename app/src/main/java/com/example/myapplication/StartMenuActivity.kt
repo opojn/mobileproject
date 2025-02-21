@@ -98,7 +98,7 @@ class StartMenuActivity : AppCompatActivity() {
                 val intent = Intent(this, StartGameActivity::class.java)
                 intent.putExtra("PLAYER_NAME", playerName) // Pass name to game
                 startActivity(intent)
-                onDestroy()
+                finish()
             } else {
                 errorMessage.text = "PLEASE KEY IN NAME TO START THE GAME"
             }

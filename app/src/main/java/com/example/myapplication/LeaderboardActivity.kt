@@ -1,6 +1,6 @@
 package com.example.myapplication
 
-import LeaderboardRepository
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.Button
@@ -21,21 +21,13 @@ class LeaderboardActivity : AppCompatActivity() {
         leaderboardTextView = findViewById(R.id.leaderboard_text)
         val backButton: Button = findViewById(R.id.button_back)
 
+        // Initialize the database and repository
+        val database = LeaderboardDatabase.getDatabase(applicationContext)
+        repository = LeaderboardRepository(database.leaderboardDao())
+
         val playerName = intent?.getStringExtra("PLAYER_NAME") ?: "Unknown Player"
         val score = intent?.getIntExtra("PLAYER_SCORE", -1) ?: -1
 
-        /*lifecycleScope.launch(Dispatchers.IO) {
-            val database = LeaderboardDatabase.getDatabase(applicationContext)
-            repository = LeaderboardRepository(database.leaderboardDao())
-
-            withContext(Dispatchers.Main) {
-                displayLeaderboard()
-            }
-        }
-
-        backButton.setOnClickListener {
-            finish() // Go back to main menu
-        }*/
         if (score != -1) {
             insertScore(playerName, score)
         } else {
@@ -43,13 +35,16 @@ class LeaderboardActivity : AppCompatActivity() {
         }
 
         backButton.setOnClickListener {
-            finish() // Go back to main menu
+            val intent = Intent(this, StartMenuActivity::class.java)
+            // Optionally, clear any lingering activities:
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            finish()
         }
     }
 
-
     private fun insertScore(playerName: String, score: Int) {
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 println("DEBUG: Inserting Score -> $playerName: $score")
                 repository.insertScore(playerName, score)
@@ -57,29 +52,32 @@ class LeaderboardActivity : AppCompatActivity() {
                 val scores = repository.getLeaderboard()
                 println("DEBUG: Scores in DB -> ${scores.joinToString { "${it.playerName}: ${it.score}" }}")
 
-                displayLeaderboard() // Refresh leaderboard after inserting a new score
+                withContext(Dispatchers.Main) {
+                    displayLeaderboard() // Refresh leaderboard after inserting a new score
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
-                leaderboardTextView.text = "Error inserting score!"
+                withContext(Dispatchers.Main) {
+                    leaderboardTextView.text = "Error inserting score!"
+                }
             }
         }
     }
 
-
     private fun displayLeaderboard() {
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val scores = repository.getLeaderboard() // Just fetch the scores, don't reinitialize DB
+                val scores = repository.getLeaderboard() // Fetch scores on the IO thread
                 val leaderboardText = scores.joinToString("\n") { "${it.playerName}: ${it.score}" }
-
                 withContext(Dispatchers.Main) {
                     leaderboardTextView.text = leaderboardText.ifEmpty { "No scores yet!" }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                leaderboardTextView.text = "Error loading leaderboard!"
+                withContext(Dispatchers.Main) {
+                    leaderboardTextView.text = "Error loading leaderboard!"
+                }
             }
         }
     }
-
 }
