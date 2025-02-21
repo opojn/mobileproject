@@ -24,20 +24,27 @@ class LeaderboardActivity : AppCompatActivity() {
         // Initialize the database and repository
         val database = LeaderboardDatabase.getDatabase(applicationContext)
         repository = LeaderboardRepository(database.leaderboardDao())
+        displayLeaderboard()
+        //val playerName = intent?.getStringExtra("PLAYER_NAME") ?: "Unknown Player"
 
-        val playerName = intent?.getStringExtra("PLAYER_NAME") ?: "Unknown Player"
-        val score = intent?.getIntExtra("PLAYER_SCORE", -1) ?: -1
-
-        if (score != -1) {
-            insertScore(playerName, score)
-        } else {
-            displayLeaderboard() // If no new score, just display the leaderboard
-        }
-
+//        val score = intent?.getIntExtra("PLAYER_SCORE", -1) ?: -1
+//
+//        // Only insert the score if this is the first creation
+//        if (savedInstanceState == null) {
+//            if (score != -1) {
+//                insertScore(playerName, score)
+//                // Remove the extra so that subsequent recreations won't trigger insertion again
+//                intent.removeExtra("PLAYER_SCORE")
+//            } else {
+//                displayLeaderboard()
+//            }
+//        } else {
+//            displayLeaderboard()
+//        }
         backButton.setOnClickListener {
-            val intent = Intent(this, StartMenuActivity::class.java)
-            // Optionally, clear any lingering activities:
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            val intent = Intent(this, StartMenuActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
             startActivity(intent)
             finish()
         }

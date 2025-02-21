@@ -212,6 +212,8 @@ class ShapeView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     // End game delays the transition by 3 seconds to let the final score remain visible.
     private fun endGame() {
+        if (isGameFinished) return  // Guard: don't end the game again
+
         gameRunning = false
         isGameFinished = true
         spawnHandler.removeCallbacks(spawnRunnable)

@@ -17,6 +17,7 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
     private lateinit var playerName: String
     private var backgroundMusic: MediaPlayer? = null
     private lateinit var repository: LeaderboardRepository
+    private var hasGameEnded = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +50,12 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
     }
 
     override fun onGameEnd(finalScore: Int) {
+        if (hasGameEnded) {
+            // Already ended, ignore further calls
+            return
+        }
+        hasGameEnded = true
+
         // Save Score Using Room Database
         saveScore(playerName, finalScore)
 
@@ -60,7 +67,7 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
         // Pass the player's name and score to LeaderboardActivity
         val intent = Intent(this, LeaderboardActivity::class.java).apply {
             putExtra("PLAYER_NAME", playerName)
-            putExtra("PLAYER_SCORE", finalScore)
+            putExtra("PLAYER_SCORE", -1)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
 
         }
