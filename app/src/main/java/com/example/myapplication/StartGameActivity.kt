@@ -26,6 +26,7 @@ class StartGameActivity : AppCompatActivity(), ShapeView.GameEndListener {
         shapeView.setGameEndListener(this)
         val layout = LinearLayout(this)
         layout.orientation = LinearLayout.VERTICAL
+        layout.setBackgroundResource(R.drawable.background)  // Set background image
         layout.addView(shapeView)
 
         setContentView(layout)
